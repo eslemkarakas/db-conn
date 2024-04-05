@@ -155,3 +155,15 @@ class Redshift:
             raise e
         finally:
             self.close_connection()
+
+    def read_data(self, sql_query):
+        self.create_connection()
+
+        try:
+            with self.connection.connect() as connection:
+                df = pd.read_sql(sql_query, connection)
+                return df
+        except exc.SQLAlchemyError as e:
+            raise e
+        finally:
+            self.close_connection()
