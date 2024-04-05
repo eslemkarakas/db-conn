@@ -51,7 +51,7 @@ class S3:
                 results.append(obj['Key'])
         return results
 
-    def read_s3_file(self, file_key):
+    def read_object(self, file_key):
         contents = []
 
         response = self.s3.get_object(Bucket=self.bucket_name, Key=file_key)
@@ -68,6 +68,48 @@ class S3:
         df = pd.DataFrame(contents)
                 
         return df
+
+    def read_csv(self, file_key):
+        csv_object = self.s3.get_object(Bucket=self.bucket, Key=file_key)
+        csv_string = csv_object['Body'].read().decode('utf-8')
+        df = pd.read_csv(StringIO(csv_string))
+        
+        return df
+
+    def read_model(self, file_key):
+        # Load the model directly from S3 using TensorFlow/Keras
+        s3_model_bytes = s3.get_object(Bucket=self.bucket_name, Key=file_key)['Body'].read()
+        
+        with h5py.File(BytesIO(s3_model_bytes), 'r') as f:
+            model = f['model']
+            mode_xl = load_model(model)
+        
+        model_file_obj = BytesIO(s3_model_bytes)
+        
+        model = load_model(model_file_obj)
+        
+        return mode_xl
+
+    def get_latest_s3_prefix(self, bucket_name, base_prefix):
+        # get the latest S3 prefix by navigating through the hierarchy
+        year_prefixes = self.get_s3_folders(bucket_name, base_prefix)
+        latest_year = sorted(year_prefixes)[-1]
+
+        month_prefixes = self.get_s3_folders(bucket_name, latest_year)
+        latest_month = sorted(month_prefixes)[-1]
+
+        day_prefixes = self.get_s3_folders(bucket_name, latest_month)
+        latest_day = sorted(day_prefixes)[-1]
+
+        hour_prefixes = self.get_s3_folders(bucket_name, latest_day)
+        latest_hour = sorted(hour_prefixes)[-1]
+
+        return latest_hour
+        
+    def upload_object(self, file_key):
+        self.s3.upload_file(send_path, self.bucket, file_key)
+
+    
     
 class Redshift:
     def __init__(self, env):
